@@ -9,6 +9,10 @@ class Todo {
         this.todoList = document.querySelector(todoList);
         this.todoCompleted = document.querySelector(todoCompleted);
         this.todoData = new Map(JSON.parse(localStorage.getItem('todoList')));
+        this.lastCheck = null;
+        this.firstCheck = null;
+        this.shiftKeyDown = false;
+        this.inBetween = false;
     } 
     generateKey() {
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -20,9 +24,9 @@ class Todo {
         li.insertAdjacentHTML('beforeend', `
             <span class="text-todo">${todo.value}</span>
             <div class="todo-buttons">
-            <button class="todo-edit"></button>
-            <button class="todo-remove"></button>
-            <button class="todo-complete"></button>
+                <button class="todo-edit"></button>
+                <button class="todo-remove"></button>
+                <button class="todo-complete"></button>
             </div>
         `);
 
@@ -108,14 +112,71 @@ class Todo {
         this.animateHidding(key, () => {
             this.todoData.delete(key);
             this.render();
-        }, 500);
+        }, 50);
     }
     completedItem(key) {
         this.animateHidding(key, () => {
             this.todoData.get(key).completed = !this.todoData.get(key).completed;
             this.render();
-        }, 500);
+        }, 50);
     }
+    checkPoints(target, key) {
+        let _this = this.todoData.get(key);
+        target.style.backgroundImage = !_this.completed ? 'url("../img/check.png")' : 'url("../img/uncheck.png")';
+        _this.completed = !_this.completed;
+        if (!this.firstCheck) {
+            this.firstCheck = _this;
+        } else {
+            this.lastCheck = _this;
+        }
+        
+    }
+    completedItems() {
+        [...this.todoData].forEach(item => {
+            if (this.firstCheck.completed && this.lastCheck.completed) {
+                if (item[1] === this.firstCheck || item[1] === this.lastCheck) {
+                    this.inBetween = !this.inBetween;
+                }
+                if (this.inBetween) {
+                    item[1].completed = true;
+                }
+            } else if (!this.firstCheck.completed && !this.lastCheck.completed) {
+                if (item[1] === this.firstCheck || item[1] === this.lastCheck) {
+                    this.inBetween = !this.inBetween;
+                }
+                if (this.inBetween) {
+                    item[1].completed = false;
+                }
+            }
+        }) 
+    }
+    // completedItems(target, key) {
+    //     let _this = this.todoData.get(key);
+    //     target.style.backgroundImage = !_this.completed ? 'url("../img/check.png")' : 'url("../img/uncheck.png")';
+    //     _this.completed = !_this.completed;
+    //     if (_this.completed) {
+    //         [...this.todoData].forEach(item => {
+    //             if (item[1] === _this && this.lastCheck || item[1] === this.lastCheck) {
+    //                 this.inBetween = !this.inBetween;
+    //             }
+    //             if (this.inBetween) {
+    //                 item[1].completed = true;
+    //             }
+    //         }) 
+    //         this.lastCheck = _this;
+    //     } 
+    //     else {
+    //         [...this.todoData].forEach(item => {
+    //             if (item[1] === _this && this.lastCheck || item[1] === this.lastCheck) {
+    //                 this.inBetween = !this.inBetween;
+    //             }
+    //             if (this.inBetween) {
+    //                 item[1].completed = false;
+    //             }
+    //         }) 
+    //         this.lastCheck = _this;
+    //     }
+    // }
     handler() {
         this.container.addEventListener('click', (event) => {
             let target = event.target;
@@ -124,7 +185,12 @@ class Todo {
                 this.deleteItem(target.parentElement.getAttribute('data-key'));
             } else if (target.matches('.todo-complete')) {
                 target = target.parentElement;
-                this.completedItem(target.parentElement.getAttribute('data-key'));
+                if (this.shiftKeyDown) {
+                    this.checkPoints(target.lastElementChild, target.parentElement.getAttribute('data-key'));
+                    // this.completedItems(target.lastElementChild, target.parentElement.getAttribute('data-key'));
+                } else {
+                    this.completedItem(target.parentElement.getAttribute('data-key'));
+                }
             } else if (target.matches('todo-edit')) {
                 target = target.parentElement;
                 this.editItem(target.parentElement.getAttribute('data-key'));
@@ -135,6 +201,19 @@ class Todo {
         this.form.addEventListener('submit', this.addTodo.bind(this));
         this.handler();
         this.render();
+        document.addEventListener('keydown', () => {
+            this.shiftKeyDown = true;
+        });
+        document.addEventListener('keyup', () => {
+            if (this.firstCheck && this.lastCheck) {
+                this.completedItems();
+            }
+            this.render();
+            this.firstCheck = null;
+            this.lastCheck = null;
+            this.shiftKeyDown = false;
+            this.inBetween = false;
+        })
     }
 }
 
